@@ -12,3 +12,5 @@
 */
 
 Route::get('/', 'HomeController@showWelcome');
+
+Route::any('wx', 'WeixinController@serve');
