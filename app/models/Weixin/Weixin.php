@@ -1,18 +1,26 @@
 <?php
-
+/**
+ * Weixin library for Laravel
+ * @author Uice Lu <uicestone@gmail.com>
+ * @version 0.5 (2014/1/2)
+ */
 class Weixin {
 	
 	private $token; // 微信公众账号后台 / 高级功能 / 开发模式 / 服务器配置
 	private $app_id; // 开发模式 / 开发者凭据
 	private $app_secret; // 同上
 	
-	function __construct() {
+	private $message_saved;
+	
+	public function __construct()
+	{
 		// 从WordPress配置中获取这些公众账号身份信息
 		foreach(array(
 			'app_id',
 			'app_secret',
 			'token'
-		) as $item){
+		) as $item)
+		{
 			$this->$item = Config::get('weixin.default.' . $item);
 		}
 	}
@@ -21,39 +29,46 @@ class Weixin {
 	 * 验证来源为微信
 	 * 放在用于响应微信消息请求的脚本最上端
 	 */
-	function verify(){
+	public function verify()
+	{
 		$sign = array(
 			$this->token,
 			$_GET['timestamp'],
 			$_GET['nonce']
 		);
+		
 		sort($sign, SORT_STRING);
-		if(sha1(implode($sign)) !== $_GET['signature']){
+		
+		if(sha1(implode($sign)) !== $_GET['signature'])
+		{
 			exit('Signature verification failed.');
 		}
 		
-		if(isset($_GET['echostr'])){
+		if(isset($_GET['echostr']))
+		{
 			echo $_GET['echostr'];
 		}
 	}
 	
-	function call($url){
-		error_log('Weixin API called: ' . $url);
+	protected function call($url)
+	{
+		Log::info('Weixin API called: ' . $url);
 		return file_get_contents($url);
 	}
 	
 	/**
-	 * 获得站点到微信的access_token
+	 * 获得站点到微信的access token
 	 * 并缓存于站点数据库
 	 * 可以判断过期并重新获取
 	 */
-	function get_access_token(){
-		
+	protected function getAccessToken()
+	{
 		$access_token_config = ConfigModel::firstOrCreate(array('key'=>'wx_client_access_token'));
 		
 		$stored = json_decode($access_token_config->value);
 		
-		if($stored && $stored->expires_at > time()){
+		if($stored && $stored->expires_at > time())
+		{
 			return $stored->token;
 		}
 		
@@ -65,13 +80,14 @@ class Weixin {
 		
 		$return = json_decode($this->call('https://api.weixin.qq.com/cgi-bin/token?' . http_build_query($query_args)));
 		
-		if($return->access_token){
+		if($return->access_token)
+		{
 			$access_token_config->value = json_encode(array('token'=>$return->access_token, 'expires_at'=>time() + $return->expires_in - 60));
 			$access_token_config->save();
 			return $return->access_token;
 		}
 		
-		error_log('Get access token failed. ' . json_encode($return));
+		Log::error('Get access token failed. ' . json_encode($return));
 		
 	}
 	
@@ -80,12 +96,13 @@ class Weixin {
 	 * 仅在用户与公众账号发生消息交互的时候才可以使用
 	 * 换言之仅可用于响应微信消息请求的脚本中
 	 */
-	function get_user_info($openid, $lang = 'zh_CN'){
+	public function getUserInfo($openid, $lang = 'zh_CN')
+	{
 		
 		$url = 'https://api.weixin.qq.com/cgi-bin/user/info?';
 		
 		$query_vars = array(
-			'access_token'=>$this->get_access_token(),
+			'access_token'=>$this->getAccessToken(),
 			'openid'=>$openid,
 			'lang'=>$lang
 		);
@@ -101,7 +118,8 @@ class Weixin {
 	/**
 	 * 生成OAuth授权地址
 	 */
-	function generate_oauth_url($redirect_uri = null, $state = '', $scope = 'snsapi_base'){
+	public function generateOAuthUrl($redirect_uri = null, $state = '', $scope = 'snsapi_base')
+	{
 		
 		$url = 'https://open.weixin.qq.com/connect/oauth2/authorize?';
 		
@@ -122,13 +140,15 @@ class Weixin {
 	/**
 	 * 生成授权地址并跳转
 	 */
-	function oauth_redirect($redirect_uri = null, $state = '', $scope = 'snsapi_base'){
+	public function oauthRedirect($redirect_uri = null, $state = '', $scope = 'snsapi_base')
+	{
 		
-		if(headers_sent()){
+		if(headers_sent())
+		{
 			exit('Could not perform an OAuth redirect, headers already sent');
 		}
 		
-		$url = $this->generate_oauth_url($redirect_uri, $state, $scope);
+		$url = $this->generateOAuthUrl($redirect_uri, $state, $scope);
 		
 		header('Location: ' . $url);
 		exit;
@@ -137,19 +157,24 @@ class Weixin {
 	
 	/**
 	 * 根据一个OAuth授权请求中的code，获得并存储用户授权信息
-	 * 通常不应直接调用此方法，而应调用get_oauth_info()
+	 * 通常不应直接调用此方法，而应调用getOAuthInfo()
 	 */
-	function get_oauth_token($code = null){
+	protected function getOAuthToken($code = null)
+	{
 		
-		if($auth_result = json_decode()){
-			if($auth_result->expires_at >= time()){
+		if($auth_result = json_decode())
+		{
+			if($auth_result->expires_at >= time())
+			{
 				return $auth_result->access_token;
 			}
 		}
 		
-		if(is_null($code)){
-			if(empty($_GET['code'])){
-				header('Location: ' . $this->generate_oauth_url(site_url() . $_SERVER['REQUEST_URI']));
+		if(is_null($code))
+		{
+			if(empty($_GET['code']))
+			{
+				header('Location: ' . $this->generateOauthUrl(site_url() . $_SERVER['REQUEST_URI']));
 				exit;
 			}
 			$code = $_GET['code'];
@@ -163,16 +188,19 @@ class Weixin {
 			'grant_type'=>'authorization_code'
 		);
 		$auth_result = json_decode($this->call($url . http_build_query($query_args)));
-		if(!isset($auth_result->openid)){
-			error_log('Get OAuth token failed. ' . json_encode($auth_result));
+		if(!isset($auth_result->openid))
+		{
+			Log::error('Get OAuth token failed. ' . json_encode($auth_result));
 			exit;
 		}
 		
 		$auth_result->expires_at = $auth_result->expires_in + time();
 		
-		if(is_user_logged_in()){
+		if(is_user_logged_in())
+		{
 			update_user_meta(get_current_user_id(), 'oauth_info', json_encode($auth_result));
-		}else{
+		}
+		else{
 			update_option('wx_oauth_token_' . $auth_result->access_token, json_encode($auth_result));
 		}
 		
@@ -181,9 +209,10 @@ class Weixin {
 	
 	/**
 	 * 刷新用户OAuth access token
-	 * 通常不应直接调用此方法，而应调用get_oauth_info()
+	 * 通常不应直接调用此方法，而应调用getOAuthInfo()
 	 */
-	function refresh_oauth_token($refresh_token){
+	protected function refreshOAuthToken($refresh_token)
+	{
 		
 		$url = 'https://api.weixin.qq.com/sns/oauth2/refresh_token?';
 		
@@ -203,35 +232,38 @@ class Weixin {
 	/**
 	 * 根据用户请求的access token，获得用户OAuth信息
 	 * 所谓OAuth信息，是用户和站点交互的凭据，里面包含了用户的openid，access token等
-	 * 并不包含用户的信息，我们需要根据OAuth信息，通过oauth_get_user_info()去获得
+	 * 并不包含用户的信息，我们需要根据OAuth信息，通过getUserInfoOAuth()去获得
 	 */
-	function get_oauth_info($access_token = null){
-		
+	public function getOAuthInfo($access_token = null)
+	{
 		// 尝试从请求中获得access token
-		if(is_null($access_token) && isset($_GET['access_token'])){
+		if(is_null($access_token) && isset($_GET['access_token']))
+		{
 			$access_token = $_GET['access_token'];
 		}
 		
 		// 如果没能获得access token，我们猜这是一个OAuth授权请求，直接根据code获得OAuth信息
 		if (empty($access_token)) {
-			return $this->get_oauth_token();
+			return $this->getOAuthToken();
 		}
 		$auth_info = json_decode(get_option('wx_oauth_token_' . $access_token));
 		// 从数据库中拿到的access token发现是过期的，那么需要刷新
 		if ($auth_info->expires_at <= time()) {
-			$auth_info = $this->refresh_oauth_token($auth_info->refresh_token);
+			$auth_info = $this->refreshOAuthToken($auth_info->refresh_token);
 		}
 		return $auth_info;
 	}
+	
 	/**
 	 * OAuth方式获得用户信息
 	 * 注意，access token的scope必须包含snsapi_userinfo，才能调用本函数获取
 	 */
-	function oauth_get_user_info($lang = 'zh_CN'){
+	public function getUserInfoOAuth($lang = 'zh_CN')
+	{
 		
 		$url = 'https://api.weixin.qq.com/sns/userinfo?';
 		
-		$auth_info = $this->get_oauth_info();
+		$auth_info = $this->getOAuthInfo();
 		
 		$query_vars = array(
 			'access_token'=>$auth_info->access_token,
@@ -255,7 +287,8 @@ class Weixin {
 	 * @param string $attach 附加信息，将在支付结果通知时原样返回
 	 * @return array
 	 */
-	function generate_js_pay_args($notify_url, $order_id, $total_price, $order_name, $attach = ' '){
+	public function generateJsPayArgs($notify_url, $order_id, $total_price, $order_name, $attach = ' ')
+	{
 		
 		$package_data = array(
 			'bank_type'=>'WX',
@@ -303,7 +336,8 @@ class Weixin {
 	 * 生成微信收货地址共享接口参数，供前端调用
 	 * @return array
 	 */
-	function generate_js_edit_address_args(){
+	public function generateJsEditAddressArgs()
+	{
 		
 		$args = array(
 			'appId'=>(string) $this->app_id,
@@ -319,7 +353,7 @@ class Weixin {
 			'url'=>"http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]",
 			'timestamp'=>$args['timeStamp'],
 			'noncestr'=>$args['nonceStr'],
-			'accesstoken'=>$this->get_oauth_token($_GET['code'])->access_token
+			'accesstoken'=>$this->getOAuthToken($_GET['code'])->access_token
 		);
 		ksort($sign_args, SORT_STRING);
 		$string1 = urldecode(http_build_query($sign_args));
@@ -337,15 +371,17 @@ class Weixin {
 	 * @param int $expires_in
 	 * @return array 二维码信息，包括获取的URL和有效期等
 	 */
-	function generate_qr_code($action_info = array(), $action_name = 'QR_SCENE', $expires_in = '1800'){
+	public function generateQrCode($action_info = array(), $action_name = 'QR_SCENE', $expires_in = '1800')
+	{
 		// TODO 过期scene应该要回收
 		// TODO scene id 到达100000后无法重置
 		// TODO QR_LIMIT_SCENE只能有100000个
-		$url = 'https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=' . $this->get_access_token();
+		$url = 'https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=' . $this->getAccessToken();
 		
 		$scene_id = get_option('wx_last_qccode_scene_id', 0) + 1;
 		
-		if($scene_id > 100000){
+		if($scene_id > 100000)
+		{
 			$scene_id = 1; // 强制重置
 		}
 		
@@ -370,7 +406,8 @@ class Weixin {
 		
 		$response = json_decode(curl_exec($ch));
 		
-		if(!property_exists($response, 'ticket')){
+		if(!property_exists($response, 'ticket'))
+		{
 			return $response;
 		}
 		
@@ -391,17 +428,19 @@ class Weixin {
 	/**
 	 * 删除微信公众号会话界面菜单
 	 */
-	function remove_menu(){
-		$url = 'https://api.weixin.qq.com/cgi-bin/menu/delete?access_token=' . $this->get_access_token();
+	public function removeMenu()
+	{
+		$url = 'https://api.weixin.qq.com/cgi-bin/menu/delete?access_token=' . $this->getAccessToken();
 		return json_decode($this->call($url));
 	}
 	
 	/**
 	 * 创建微信公众号会话界面菜单
 	 */
-	function create_menu($data){
+	public function createMenu($data)
+	{
 		
-		$url = 'https://api.weixin.qq.com/cgi-bin/menu/create?access_token=' . $this->get_access_token();
+		$url = 'https://api.weixin.qq.com/cgi-bin/menu/create?access_token=' . $this->getAccessToken();
 		
 		$ch = curl_init($url);
 		
@@ -423,42 +462,97 @@ class Weixin {
 	/**
 	 * 获得微信公众号会话界面菜单
 	 */
-	function get_menu(){
-		$menu = json_decode($this->call('https://api.weixin.qq.com/cgi-bin/menu/get?access_token=' . $this->get_access_token()));
+	function getMenu()
+	{
+		$menu = json_decode($this->call('https://api.weixin.qq.com/cgi-bin/menu/get?access_token=' . $this->getAccessToken()));
 		return $menu;
 	}
 	
-	function onmessage($type, $callback){
+	function onMessage($type, $callback)
+	{
+		$message_raw = (object) (array) simplexml_load_string(Request::getContent(), 'SimpleXMLElement', LIBXML_NOCDATA);
 		
-		if(!isset($GLOBALS["HTTP_RAW_POST_DATA"])){
-			return false;
+		if(!$message_raw)
+		{
+			Log::error('Weixin message XML parse error. Content: ' . Request::getContent());
+			exit;
 		}
 		
-		xml_parse_into_struct(xml_parser_create(), $GLOBALS["HTTP_RAW_POST_DATA"], $message);
-		$message = array_column($message, 'value', 'tag');
-		if(!is_array($message)){
-			error_log('XML parse error.');
+		if($message_raw->MsgType === $type)
+		{
+			$callback($message_raw);
 		}
-		// 事件消息			
-		if($message['MSGTYPE'] === $type){
-			$callback($message);
+		
+		if(!$this->message_saved)
+		{
+			$user = User::firstOrCreate(array('openid'=>$message_raw->FromUserName));
+
+			if(!$user->name)
+			{
+				$user_info = $this->getUserInfo($message_raw->FromUserName);
+
+				$user->fill(array(
+					'name'=>$user_info->nickname,
+					'meta'=>json_encode($user_info, JSON_UNESCAPED_UNICODE)
+				));
+
+			}
+
+			$user->last_active_at = date('Y-m-d H:i:s', $message_raw->CreateTime);
+
+			if($message_raw->Event === 'LOCATION'){
+				$user->latitude = $message_raw->Latitude;
+				$user->longitude = $message_raw->Longitude;
+				$user->precision = $message_raw->Precision;
+			}
+
+			$user->save();
+
+			$message = new Message();
+
+			$message->fill(array(
+				'type'=>$message_raw->MsgType,
+				'event'=>$message_raw->Event,
+				'meta'=>json_encode($message_raw, JSON_UNESCAPED_UNICODE)
+			));
+
+			$message->user()->associate($user);
+
+			try
+			{
+				$message->save();
+			}
+			catch(PDOException $e)
+			{
+				// A "Dupulicate Entry" exception is considered normal here
+				if(strpos($e->getMessage(), 'Duplicate entry') === false)
+				{
+					throw new PDOException($e->getMessage(), $e->getCode(), $e);
+				}
+			}
+			
+			$this->message_saved = true;
+			
 		}
 		
 		return $this;
 		
 	}
 	
-	function reply_message($reply_message_content, $received_message){
-		return View::make('weixin/message-reply-text', compact('reply_message_content', 'received_message'));
+	function replyMessage($content, $received_message)
+	{
+		return View::make('weixin/message-reply-text', compact('content', 'received_message'));
 	}
 	
-	function reply_post_message($reply_posts, $received_message){
+	function replyPostMessage($reply_posts, $received_message)
+	{
 		!is_array($reply_posts) && $reply_posts = array($reply_posts);
 		$reply_posts_count = count($reply_posts);
 		return View::make('weixin/message-reply-news', compact('reply_posts_count'));
 	}
 	
-	function transfer_customer_service($received_message){
+	function transferCustomerService($received_message)
+	{
 		return View::make('weixin/transfer-customer-service', array('fromUser'=>$received_message->fromUserName));
 	}
 	

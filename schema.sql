@@ -1,8 +1,11 @@
+DROP DATABASE `babawoo`;
+CREATE DATABASE `babawoo`;
+USE `babawoo`;
+
 CREATE TABLE IF NOT EXISTS `config` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `key` varchar(255) NOT NULL,
   `value` text DEFAULT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created_at` timestamp NOT NULL,
   PRIMARY KEY (`id`),
   KEY `updated_at` (`updated_at`),
@@ -33,11 +36,22 @@ CREATE TABLE IF NOT EXISTS `line_stop` (
   KEY `stop_id` (`stop_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `messages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `type` varchar(31) NOT NULL,
+  `event` varchar(31) NOT NULL,
+  `meta` text NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `stops` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `latitude` float NOT NULL,
-  `longitude` float NOT NULL,
+  `latitude` double NOT NULL,
+  `longitude` double NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created_at` timestamp NOT NULL,
   PRIMARY KEY (`id`)
@@ -47,7 +61,11 @@ CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `openid` varchar(255) NOT NULL,
-  `meta` TEXT DEFAULT NULL,
+  `meta` text,
+  `latitude` double NOT NULL,
+  `longitude` double NOT NULL,
+  `precision` smallint(4) NOT NULL,
+  `last_active_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created_at` timestamp NOT NULL,
   PRIMARY KEY (`id`)
