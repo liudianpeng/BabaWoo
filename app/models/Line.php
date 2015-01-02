@@ -2,11 +2,11 @@
 
 class Line extends Eloquent {
 	
-	protected $fillable = array('name', 'first_vehicle_hour', 'last_vehicle_hour');
+	protected $fillable = array('name', 'first_vehicle_hour', 'last_vehicle_hour', 'slug', 'line_id', 'direction');
 
 	public function stops()
 	{
-		return $this->hasMany('Stop');
+		return $this->belongsToMany('Stop');
 	}
 	
 	public function originStop()

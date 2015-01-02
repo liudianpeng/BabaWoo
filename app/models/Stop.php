@@ -2,7 +2,7 @@
 
 class Stop extends Eloquent {
 	
-	protected $fillable = array('name', 'latitude', 'longitude');
+	protected $fillable = array('name', 'latitude', 'longitude', 'stop_id');
 
 	public function lines()
 	{
