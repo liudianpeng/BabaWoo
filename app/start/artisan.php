@@ -11,3 +11,4 @@
 |
 */
 Artisan::add(new UpdateLines);
+Artisan::add(new UpdateStopLocation);
