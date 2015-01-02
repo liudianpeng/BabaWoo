@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `lines` (
   `name` varchar(15) NOT NULL,
   `slug` varchar(15) NOT NULL,
   `line_id` varchar(15) NOT NULL,
+  `region` varchar(15) NOT NULL,
   `direction` tinyint(4) NOT NULL,
   `origin_stop_id` int(11) DEFAULT NULL,
   `terminal_stop_id` int(11) DEFAULT NULL,
