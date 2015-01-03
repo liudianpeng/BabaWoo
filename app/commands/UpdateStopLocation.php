@@ -40,21 +40,26 @@ class UpdateStopLocation extends Command {
 		$stops = Stop::where('latitude', null)->orWhere('longitude', null)->get();
 		foreach($stops as $stop)
 		{
-			$result = $this->getPlaces($stop->name . '-公交车站')->results;
-			if(!$result)
-			{
-				$this->error($stop->name . '站 没有找到');
-				continue;
+			try{
+				$result = $this->getPlaces($stop->name . '-公交车站')->results;
+				if(!$result)
+				{
+					$this->error($stop->name . '站 没有找到');
+					continue;
+				}
+
+				$place = $result[0];
+
+				$stop->latitude = $place->location->lat;
+				$stop->longitude = $place->location->lng;
+
+				$stop->save();
+
+				$this->info($stop->name . '站 地址已保存');
+			}catch(Exception $e){
+				$this->error($e->getMessage());
+				Log::error($e->getMessage());
 			}
-			
-			$place = $result[0];
-			
-			$stop->latitude = $place->location->lat;
-			$stop->longitude = $place->location->lng;
-			
-			$stop->save();
-			
-			$this->info($stop->name . '站 地址已保存');
 		}
 	}
 	
