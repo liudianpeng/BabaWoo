@@ -66,14 +66,18 @@ CREATE TABLE IF NOT EXISTS `stops` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created_at` timestamp NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `name` (`name`)
+  KEY `name` (`name`),
+  KEY `latitude` (`latitude`),
+  KEY `longitude` (`longitude`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `openid` varchar(255) NOT NULL,
-  `meta` text,
+  `meta` text DEFAULT NULL,
+  `favorite` text DEFAULT NULL,
+  `session` text DEFAULT NULL,
   `latitude` double NOT NULL,
   `longitude` double NOT NULL,
   `precision` smallint(4) NOT NULL,
@@ -83,7 +87,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`id`),
   KEY `name` (`name`),
   UNIQUE KEY `openid` (`openid`),
-  KEY `last_active_at` (`last_active_at`)
+  KEY `last_active_at` (`last_active_at`),
+  KEY `latitude` (`latitude`),
+  KEY `longitude` (`longitude`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 ALTER TABLE `line_stop`
