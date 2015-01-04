@@ -30,45 +30,6 @@ class UpdateLines extends Command {
 		parent::__construct();
 	}
 	
-	protected function parseXml(SimpleXMLElement $xml, $as_array = false)
-	{
-		$object = json_decode(json_encode($xml), $as_array);
-		foreach($as_array ? $object : get_object_vars($object) as $key => $value)
-		{
-			if(is_string($value))
-			{
-				$object->$key = trim($value);
-			}
-		}
-		return $object;
-	}
-	
-	protected function getFromApi($api_name, $region = 'px', $query_args = array(), $use_key = true, $as_array = false)
-	{
-		if($use_key)
-		{
-			$query_args = array_merge($query_args, array(
-				'my'=>strtoupper(md5(Config::get('shjtmap.' . $region . '.key') . date('Y-m-dH:i'))),
-				't'=>date('Y-m-dH:i')
-			));
-		}
-		
-		$url = Config::get('shjtmap.' . $region . '.' . $api_name) . '?' . http_build_query($query_args);
-		
-//		$this->info('Calling: ' . $url);
-		
-		$xml = file_get_contents($url);
-		
-		$simpleXmlObject = simplexml_load_string($xml);
-		
-		$object = $this->parseXml($simpleXmlObject, $as_array);
-		
-//		$this->info('Object parsed as:');
-//		var_export($object); echo "\n";
-		
-		return $object;
-	}
-
 	/**
 	 * Execute the console command.
 	 *
@@ -77,7 +38,7 @@ class UpdateLines extends Command {
 	public function fire()
 	{
 		
-		$lines = $this->getFromApi('line', $this->option('region'), array(), false, true)['line'];
+		$lines = Shjtmap::get('line', $this->option('region'), array(), false, true)['line'];
 		
 		foreach($lines as $line)
 		{
@@ -93,14 +54,14 @@ class UpdateLines extends Command {
 					continue;
 				}
 				
-				$line_detail = $this->getFromApi('get_line_info_by_name', $this->option('region'), $query_args);
+				$line_detail = Shjtmap::get('get_line_info_by_name', $this->option('region'), $query_args);
 
 				if($this->option('region') === 'pd')
 				{
 					$line_detail = $line_detail->linedetail;
 				}
 
-				$directions = (array) $this->getFromApi('get_line', $this->option('region'), array('lineid'=>$line_detail->line_id));
+				$directions = (array) Shjtmap::get('get_line', $this->option('region'), array('lineid'=>$line_detail->line_id));
 
 				foreach($directions as $direction)
 				{
