@@ -478,14 +478,10 @@ class Weixin {
 			exit;
 		}
 		
-		if($message_raw->MsgType === $type)
-		{
-			$callback($message_raw);
-		}
+		$user = User::firstOrCreate(array('openid'=>$message_raw->FromUserName));
 		
 		if(!$this->message_saved)
 		{
-			$user = User::firstOrCreate(array('openid'=>$message_raw->FromUserName));
 
 			if(!$user->name)
 			{
@@ -500,19 +496,19 @@ class Weixin {
 
 			$user->last_active_at = date('Y-m-d H:i:s', $message_raw->CreateTime);
 
-			if($message_raw->Event === 'LOCATION'){
+			if(property_exists($message_raw, 'Event') && $message_raw->Event === 'LOCATION'){
 				$user->latitude = $message_raw->Latitude;
 				$user->longitude = $message_raw->Longitude;
 				$user->precision = $message_raw->Precision;
 			}
 
 			$user->save();
-
+			
 			$message = new Message();
 
 			$message->fill(array(
 				'type'=>$message_raw->MsgType,
-				'event'=>$message_raw->Event,
+				'event'=>property_exists($message_raw, 'Event') ? $message_raw->Event : '',
 				'meta'=>json_encode($message_raw, JSON_UNESCAPED_UNICODE)
 			));
 
@@ -533,6 +529,11 @@ class Weixin {
 			
 			$this->message_saved = true;
 			
+		}
+		
+		if($message_raw->MsgType === $type)
+		{
+			$callback($message_raw, $user);
 		}
 		
 		return $this;
