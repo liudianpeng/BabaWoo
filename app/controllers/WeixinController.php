@@ -1,5 +1,7 @@
 <?php
 
+use Carbon\Carbon;
+
 class WeixinController extends BaseController {
 	
 	/*
@@ -73,7 +75,41 @@ class WeixinController extends BaseController {
 			
 			if(!array_key_exists($index, $session))
 			{
-				echo $weixin->replyMessage('序号回复错误', $message);
+				$nearByStops = Stop::getNearBy($user->latitude, $user->longitude, $message->Content);
+				
+				$reply_text = ''; $line_no = 0;
+				
+				// 存储发送给用户的序号-线路
+				$session = array();
+				
+				foreach($nearByStops as $stop)
+				{
+					
+					if(strlen($reply_text . '= ' . $stop->name . ' =' . "\n") > 2048){
+						break;
+					}
+					
+					$reply_text .= '= ' . $stop->name . ' =' . "\n";
+					
+					foreach($stop->lines as $line)
+					{
+						$item = ($line_no + 1) . '. ' . $line->name . '->' . $line->terminalStop->name;
+						
+						if(strlen($reply_text . $item . "\n") > 2048)
+						{
+							break;
+						}
+						
+						$session[$line_no] = $line->pivot->id;
+						$reply_text .= $item . "\n";
+						$line_no ++;
+					}
+				}
+				
+				$user->session = json_encode($session);
+				$user->save();
+				
+				echo $weixin->replyMessage($reply_text, $message);
 				return;
 			}
 			
@@ -92,12 +128,17 @@ class WeixinController extends BaseController {
 			$user->save();
 			
 			$result = Shjtmap::get('car_monitor', 'px', array('lineid'=>$line->line_id, 'direction'=>(bool) $line->direction, 'stopid'=>$line_stop->stop_no));
-			Log::info(json_encode($result->cars->car[0]));
+			
 			$next_bus = $result->cars->car[0];
 			
 			// 查找下一班车时间，返回距离和预估时间
+			$reply_text = $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
+					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . $next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance . '米，'
+					. '约' . floor($next_bus->time / 6) . '分' . $next_bus->time % 60 . '秒' . '进站';
+			
+			echo $weixin->replyMessage($reply_text, $message);
+			
 			// 挂起一个任务，在预估时间少于1分钟时给用户发送一条客服消息
-			echo $weixin->replyMessage($line->name . '->' . $line->terminalStop->name .  ' ' . $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . $next_bus->distance . '米，约' . $next_bus->time . '秒后进站', $message);
 		});
 		
 	}
