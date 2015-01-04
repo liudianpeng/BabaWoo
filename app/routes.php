@@ -14,4 +14,5 @@
 Route::get('/', 'HomeController@showWelcome');
 
 Route::any('wx', 'WeixinController@serve');
+Route::get('update-menu', 'WeixinController@updateMenu');
 Route::get('remove-menu', 'WeixinController@removeMenu');

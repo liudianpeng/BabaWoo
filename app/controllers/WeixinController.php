@@ -105,7 +105,7 @@ class WeixinController extends BaseController {
 	public function updateMenu()
 	{
 		$weixin = new Weixin();
-		$menu_config = ConfigModel::firstOrCreate(array('key' => 'wx_client_menu'));
+		$menu_config = ConfigModel::firstOrCreate(array('key' => 'wx_menu'));
 		
 		if(!$menu_config->value){
 			$menu = $weixin->getMenu();
