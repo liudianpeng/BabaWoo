@@ -2,7 +2,7 @@
 /**
  * Weixin library for Laravel
  * @author Uice Lu <uicestone@gmail.com>
- * @version 0.5 (2014/1/2)
+ * @version 0.51 (2014/1/2)
  */
 class Weixin {
 	
@@ -22,6 +22,7 @@ class Weixin {
 		) as $item)
 		{
 			$this->$item = Config::get('weixin.default.' . $item);
+			// TODO: CHANGE THIS to Weixin account identifier in config file.
 		}
 	}
 	
@@ -50,6 +51,9 @@ class Weixin {
 		}
 	}
 	
+	/**
+	 * @todo should implement curl, support POST method and json content type
+	 */
 	protected function call($url)
 	{
 		Log::info('Weixin API called: ' . $url);
@@ -63,8 +67,8 @@ class Weixin {
 	 */
 	protected function getAccessToken()
 	{
-		$access_token_config = ConfigModel::firstOrCreate(array('key'=>'wx_client_access_token'));
-		
+		$access_token_config = ConfigModel::firstOrCreate(array('key'=>'wx_access_token'));
+		// TODO: CHANGE THIS: wx_client_access_token here should be a config item
 		$stored = json_decode($access_token_config->value);
 		
 		if($stored && $stored->expires_at > time())
@@ -125,7 +129,7 @@ class Weixin {
 		
 		$query_args = array(
 			'appid'=>$this->app_id,
-			'redirect_uri'=>is_null($redirect_uri) ? site_url() : $redirect_uri,
+			'redirect_uri'=>is_null($redirect_uri) ? url() : $redirect_uri,
 			'response_type'=>'code',
 			'scope'=>$scope,
 			'state'=>$state
@@ -161,23 +165,15 @@ class Weixin {
 	 */
 	protected function getOAuthToken($code = null)
 	{
-		
-		if($auth_result = json_decode())
-		{
-			if($auth_result->expires_at >= time())
-			{
-				return $auth_result->access_token;
-			}
-		}
-		
 		if(is_null($code))
 		{
-			if(empty($_GET['code']))
+			if(is_null(Input::get('code')))
 			{
-				header('Location: ' . $this->generateOauthUrl(site_url() . $_SERVER['REQUEST_URI']));
+				header('Location: ' . $this->generateOauthUrl(url(Input::server('REQUEST_URI'))));
 				exit;
 			}
-			$code = $_GET['code'];
+			
+			$code = Input::get('code');
 		}
 		
 		$url = 'https://api.weixin.qq.com/sns/oauth2/access_token?';
@@ -196,12 +192,14 @@ class Weixin {
 		
 		$auth_result->expires_at = $auth_result->expires_in + time();
 		
-		if(is_user_logged_in())
+		// 客户未关注，但已经储存在数据表中，将其open_id更新进来
+		// TODO: CHANGE THIS to a common user create and identify function
+		if(Input::get('hash') && $client = User::where('openid', Input::get('hash'))->first())
 		{
-			update_user_meta(get_current_user_id(), 'oauth_info', json_encode($auth_result));
-		}
-		else{
-			update_option('wx_oauth_token_' . $auth_result->access_token, json_encode($auth_result));
+			$client->open_id = $auth_result->openid;
+			$client->save();
+			
+			Session::set('weixin.open_id', $auth_result->openid);
 		}
 		
 		return $auth_result;
@@ -233,19 +231,24 @@ class Weixin {
 	 * 根据用户请求的access token，获得用户OAuth信息
 	 * 所谓OAuth信息，是用户和站点交互的凭据，里面包含了用户的openid，access token等
 	 * 并不包含用户的信息，我们需要根据OAuth信息，通过getUserInfoOAuth()去获得
+	 * @deprecated 这个方法在需要储存access token的时候才要用到，目前由于有cookie，暂时不需要储存access token
+	 * @todo access token应该考虑存储到用户信息中
 	 */
 	public function getOAuthInfo($access_token = null)
 	{
 		// 尝试从请求中获得access token
-		if(is_null($access_token) && isset($_GET['access_token']))
+		if(is_null($access_token) && Input::get('access_token'))
 		{
-			$access_token = $_GET['access_token'];
+			$access_token = Input::get('access_token');
 		}
 		
 		// 如果没能获得access token，我们猜这是一个OAuth授权请求，直接根据code获得OAuth信息
 		if (empty($access_token)) {
 			return $this->getOAuthToken();
 		}
+		
+		exit('method: getOAuthInfo is deprecated.');
+		
 		$auth_info = json_decode(get_option('wx_oauth_token_' . $access_token));
 		// 从数据库中拿到的access token发现是过期的，那么需要刷新
 		if ($auth_info->expires_at <= time()) {
@@ -279,91 +282,6 @@ class Weixin {
 	}
 	
 	/**
-	 * 生成支付接口参数，供前端调用
-	 * @param string $notify_url 支付结果通知url
-	 * @param string $order_id 订单号，必须唯一
-	 * @param int $total_price 总价，单位为分
-	 * @param string $order_name 订单名称
-	 * @param string $attach 附加信息，将在支付结果通知时原样返回
-	 * @return array
-	 */
-	public function generateJsPayArgs($notify_url, $order_id, $total_price, $order_name, $attach = ' ')
-	{
-		
-		$package_data = array(
-			'bank_type'=>'WX',
-			'body'=>$order_name,
-			'attach'=>$attach,
-			'partner'=>$this->partner_id,
-			'out_trade_no'=>$order_id,
-			'total_fee'=>(string)(int) ($total_price * 100),
-			'fee_type'=>'1',
-			'notify_url'=>$notify_url,
-			'spbill_create_ip'=>$_SERVER['REMOTE_ADDR'],
-			'input_charset'=>'UTF-8'
-		);
-		ksort($package_data, SORT_STRING);
-		$string1 = urldecode(http_build_query($package_data));
-		$stringSignTemp = $string1 . '&key=' . $this->partner_key;
-		$signValue = strtoupper(md5($stringSignTemp));
-		$string2 = http_build_query($package_data, null, null, PHP_QUERY_RFC3986);
-		$package = $string1 . '&sign=' . $signValue;
-		$nonce_str = (string) rand(1E15, 1E16-1);
-		$timestamp = time();
-		$pay_sign_data = array(
-			'appid'=>get_option('wx_app_id'),
-			'timestamp'=>$timestamp,
-			'noncestr'=>$nonce_str,
-			'package'=>$package,
-			'appkey'=>$this->pay_sign_key
-		);
-		ksort($pay_sign_data, SORT_STRING);
-		$string1 = urldecode(http_build_query($pay_sign_data));
-		$pay_sign = sha1($string1);
-		$pay_request_args = array(
-			'appId'=>(string) get_option('wx_app_id'),
-			'timeStamp'=>(string) $timestamp,
-			'nonceStr'=>(string) $nonce_str,
-			'package'=>$package,
-			'signType'=>'SHA1',
-			'paySign'=>$pay_sign,
-		);
-		
-		return $pay_request_args;
-	}
-	
-	/**
-	 * 生成微信收货地址共享接口参数，供前端调用
-	 * @return array
-	 */
-	public function generateJsEditAddressArgs()
-	{
-		
-		$args = array(
-			'appId'=>(string) $this->app_id,
-			'scope'=>'jsapi_address',
-			'signType'=>'sha1',
-			'addrSign'=>'',
-			'timeStamp'=>(string) time(),
-			'nonceStr'=>(string) rand(1E15, 1E16-1)
-		);
-		
-		$sign_args = array(
-			'appid'=>$this->app_id,
-			'url'=>"http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]",
-			'timestamp'=>$args['timeStamp'],
-			'noncestr'=>$args['nonceStr'],
-			'accesstoken'=>$this->getOAuthToken($_GET['code'])->access_token
-		);
-		ksort($sign_args, SORT_STRING);
-		$string1 = urldecode(http_build_query($sign_args));
-		
-		$args['addrSign'] = sha1($string1);
-		return $args;
-		
-	}
-	
-	/**
 	 * 生成一个带参数二维码的信息
 	 * @param int $scene_id $action_name 为 'QR_LIMIT_SCENE' 时为最大为100000（目前参数只支持1-100000）
 	 * @param array $action_info
@@ -378,7 +296,12 @@ class Weixin {
 		// TODO QR_LIMIT_SCENE只能有100000个
 		$url = 'https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=' . $this->getAccessToken();
 		
-		$scene_id = get_option('wx_last_qccode_scene_id', 0) + 1;
+		$last_scene_id_config = ConfigModel::firstOrCreate(array('key'=>'wx_last_qccode_scene_id'));
+		!$last_scene_id_config->value && $last_scene_id_config->value = 0;
+		$last_scene_id_config->value ++;
+		$last_scene_id_config->save();
+		
+		$scene_id = $last_scene_id_config->value;
 		
 		if($scene_id > 100000)
 		{
@@ -418,8 +341,7 @@ class Weixin {
 			'ticket'=>$response->ticket
 		);
 		
-		update_option('wx_qrscene_' . $scene_id, json_encode($qrcode));
-		update_option('wx_last_qccode_scene_id', $scene_id);
+		ConfigModel::create(array('key'=>'wx_qrscene_' . $scene_id, 'value'=>json_encode($qrcode)));
 		
 		return $qrcode;
 		
@@ -545,6 +467,9 @@ class Weixin {
 		return View::make('weixin/message-reply-text', compact('content', 'received_message'));
 	}
 	
+	/**
+	 * @todo not adapt to Laravel yet
+	 */
 	function replyPostMessage($reply_posts, $received_message)
 	{
 		!is_array($reply_posts) && $reply_posts = array($reply_posts);
