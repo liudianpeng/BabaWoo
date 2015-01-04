@@ -14,10 +14,50 @@ class WeixinController extends BaseController {
 		}
 		
 		$weixin->onMessage('event', function($message) use($weixin){
-			$weixin->replyMessage(json_encode($message), $message);
+			if($message->Event === 'LOCATION')
+			{
+				// 查找用户周围车站
+				$nearByStops = Stop::getNearBy($message->Latitude, $message->Longitude);
+				
+				$reply_text = ''; $line_no = 1;
+				
+				foreach($nearByStops as $stop)
+				{
+					
+					if(strlen($reply_text . '= ' . $stop->name . ' =' . "\n") > 2028){
+						break;
+					}
+					
+					$reply_text .= '= ' . $stop->name . ' =' . "\n";
+					
+					foreach($stop->lines as $line)
+					{
+						$item = ($line_no) . '. ' . $line->name . '->' . $line->terminalStop->name;
+						$line_no ++;
+						
+						if(strlen($reply_text . $item . "\n") > 2048)
+						{
+							break;
+						}
+						
+						$reply_text .= $item . "\n";
+					}
+				}
+				
+				// 按站分组
+				echo $weixin->replyMessage($reply_text, $message);
+		
+				// 搜索收藏的 公交线路-站 并给出结果
+				// 返回所有 公交线路-站 并挂起序号等待回复
+			}
+			
 		});
 		
 		$weixin->onMessage('text', function($message) use($weixin){
+			// 查找该用户挂起的序号，映射到 公交线路-站
+			// 将本 公交线路 - 站加入收藏
+			// 查找下一班车时间，返回距离和预估时间
+			// 挂起一个任务，在预估时间少于1分钟时给用户发送一条客服消息
 			echo $weixin->replyMessage('Hello World', $message);
 		});
 		
@@ -44,7 +84,7 @@ class WeixinController extends BaseController {
 	public function removeMenu()
 	{
 		$weixin = new Weixin();
-		return json_encode($weixin->removeMenu());
+		return json_encode($weixin->removeMenu()) . "\n" . json_encode($weixin->getMenu());
 	}
 	
 }
