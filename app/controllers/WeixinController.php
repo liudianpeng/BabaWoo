@@ -1,7 +1,5 @@
 <?php
 
-use Carbon\Carbon;
-
 class WeixinController extends BaseController {
 	
 	/*
@@ -22,7 +20,8 @@ class WeixinController extends BaseController {
 				$favorite = json_decode($user->favorite);
 				
 				// 查找用户周围车站
-				$nearByStops = Stop::getNearBy($message->Latitude, $message->Longitude);
+				$latlng = BaiduMap::geoConv(array($message->Latitude, $message->Longitude));
+				$nearByStops = Stop::nearBy($latlng[0], $latlng[1])->distanceAscending($latlng[0], $latlng[1])->get();
 				
 				$reply_text = ''; $line_no = 0;
 				
@@ -75,14 +74,20 @@ class WeixinController extends BaseController {
 			
 			if(!array_key_exists($index, $session))
 			{
-				$nearByStops = Stop::getNearBy($user->latitude, $user->longitude, $message->Content);
+				// 回复的是线路名称，查找这些线路的附近站点
+				$latlng = BaiduMap::geoConv(array($user->latitude, $user->longitude));
+				$stops = Stop::whereHas('lines', function($q) use($message)
+				{
+					$q->where('name', 'like', $message->Content . '%');
+					
+				})->distanceAscending($latlng[0], $latlng[1])->get();
 				
 				$reply_text = ''; $line_no = 0;
 				
 				// 存储发送给用户的序号-线路
 				$session = array();
 				
-				foreach($nearByStops as $stop)
+				foreach($stops as $stop)
 				{
 					
 					if(strlen($reply_text . '= ' . $stop->name . ' =' . "\n") > 2048){
@@ -91,7 +96,7 @@ class WeixinController extends BaseController {
 					
 					$reply_text .= '= ' . $stop->name . ' =' . "\n";
 					
-					foreach($stop->lines as $line)
+					foreach($stop->lines()->where('name', 'like', $message->Content . '%')->get() as $line)
 					{
 						$item = ($line_no + 1) . '. ' . $line->name . '->' . $line->terminalStop->name;
 						
@@ -133,8 +138,8 @@ class WeixinController extends BaseController {
 			
 			// 查找下一班车时间，返回距离和预估时间
 			$reply_text = $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
-					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . $next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance . '米，'
-					. '约' . floor($next_bus->time / 6) . '分' . $next_bus->time % 60 . '秒' . '进站';
+					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
+					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站';
 			
 			echo $weixin->replyMessage($reply_text, $message);
 			

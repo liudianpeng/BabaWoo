@@ -19,35 +19,29 @@ class Stop extends Eloquent {
 		return $this->hasMany('Line', 'terminal_stop_id');
 	}
 	
-	public static function getNearBy($latitude_raw, $longitude_raw)
+	/**
+	 * 缩小范围，只搜索正负$scope经纬度范围内的车站
+	 * 这可以用到latitude和longitude字段的索引，是快查询
+	 * @param Query\Builder $query
+	 * @param double $latitude 百度地图纬度
+	 * @param double $longitude 百度地图经度
+	 * @param float $scope 经纬度范围半径
+	 */
+	public function scopeNearBy($query, $latitude, $longitude, $scope = 0.01)
 	{
-		$url_geoconv = 'http://api.map.baidu.com/geoconv/v1/?';
-		$query_args = array(
-			'coords'=>$longitude_raw . ',' . $latitude_raw,
-			'ak'=>Config::get('baidumap.ak')
-		);
-		
-		$response = file_get_contents($url_geoconv . urldecode(http_build_query($query_args)));
-		
-		$point = json_decode($response)->result[0];
-		
-		$latitude = $point->y;
-		$longitude = $point->x;
-		
-		$query = DB::table('stops')
-			->whereBetween('latitude', array($latitude - 0.01, $latitude + 0.01))
-			->whereBetween('longitude', array($longitude - 0.01, $longitude + 0.01))
-			->orderByRaw('POW(`latitude` - ?, 2) + POW(`longitude` - ?, 2) ASC', array($latitude, $longitude));
-		
-		$stops = $query->get();
-		
-		foreach($stops as &$stop)
-		{
-			$stop = Stop::find($stop->id);
-		}
-		
-		return $stops;
-		
+		return $query->whereBetween('latitude', array($latitude - $scope, $latitude + $scope))
+			->whereBetween('longitude', array($longitude - $scope, $longitude + $scope));
+	}
+	
+	/**
+	 * 根据经纬度差的平方和求得距离系数并排序
+	 * @param Query\Builder $query
+	 * @param double $latitude
+	 * @param double $longitude
+	 */
+	public function scopeDistanceAscending($query, $latitude, $longitude)
+	{
+		return $query->orderByRaw('POW(`latitude` - ?, 2) + POW(`longitude` - ?, 2) ASC', array($latitude, $longitude));
 	}
 	
 }

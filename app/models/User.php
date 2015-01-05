@@ -23,6 +23,10 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	 */
 	protected $hidden = array('password', 'remember_token');
 	
+	/**
+	 * 这里的latitude和longitude来自微信消息，为设备数据，未转码到百度地图坐标
+	 * @var array
+	 */
 	protected $fillable = array('name', 'openid', 'latitute', 'longitude', 'precision', 'meta', 'session', 'favorite');
 
 	public function messages()
