@@ -6,7 +6,7 @@ class Stop extends Eloquent {
 
 	public function lines()
 	{
-		return $this->belongsToMany('Line')->withPivot('id');
+		return $this->belongsToMany('Line')->withPivot('id', 'stop_no');
 	}
 	
 	public function originLines()
