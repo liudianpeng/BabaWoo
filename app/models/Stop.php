@@ -41,7 +41,7 @@ class Stop extends Eloquent {
 	 */
 	public function scopeDistanceAscending($query, $latitude, $longitude)
 	{
-		return $query->orderByRaw('POW(`latitude` - ?, 2) + POW(`longitude` - ?, 2) ASC', array($latitude, $longitude));
+		return $query->orderByRaw('`latitude` AND `longitude` DESC, POW(`latitude` - ?, 2) + POW(`longitude` - ?, 2) ASC', array($latitude, $longitude));
 	}
 	
 }
