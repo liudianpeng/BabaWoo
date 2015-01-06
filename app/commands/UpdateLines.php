@@ -77,6 +77,7 @@ class UpdateLines extends Command {
 
 					$line->fill(array(
 						'name'=>$line_base['name'],
+						'region'=>$this->option('region'),
 						'line_id'=>$line_detail->line_id,
 						'first_vehicle_hour'=>$direction->direction ? $line_detail->start_earlytime : $line_detail->end_earlytime,
 						'last_vehicle_hour'=>$direction->direction ? $line_detail->start_latetime : $line_detail->end_latetime

@@ -2,7 +2,7 @@
 
 class Line extends Eloquent {
 	
-	protected $fillable = array('name', 'first_vehicle_hour', 'last_vehicle_hour', 'slug', 'line_id', 'direction');
+	protected $fillable = array('name', 'first_vehicle_hour', 'last_vehicle_hour', 'slug', 'region', 'line_id', 'direction');
 
 	public function stops()
 	{

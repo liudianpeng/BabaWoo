@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `lines` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(15) NOT NULL,
   `slug` varchar(15) NOT NULL,
+  `region` varchar(15) NOT NULL,
   `line_id` varchar(15) NOT NULL,
   `region` varchar(15) NOT NULL,
   `direction` tinyint(4) NOT NULL,
