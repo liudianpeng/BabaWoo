@@ -25,12 +25,16 @@ class Stop extends Eloquent {
 	 * @param Query\Builder $query
 	 * @param double $latitude 百度地图纬度
 	 * @param double $longitude 百度地图经度
-	 * @param float $scope 经纬度范围半径
+	 * @param float $scope 经纬度范围（米）
 	 */
-	public function scopeNearBy($query, $latitude, $longitude, $scope = 0.01)
+	public function scopeNearBy($query, $latitude, $longitude, $scope = 500)
 	{
-		return $query->whereBetween('latitude', array($latitude - $scope, $latitude + $scope))
-			->whereBetween('longitude', array($longitude - $scope, $longitude + $scope));
+		
+		$latitude_scope = $scope / 1000 * 360 / 40075 / cos(deg2rad($latitude));
+		$longitude_scope = $scope / 1000 * 360 / 40075;
+		
+		return $query->whereBetween('latitude', array($latitude - $latitude_scope, $latitude + $latitude_scope))
+			->whereBetween('longitude', array($longitude - $longitude_scope, $longitude + $longitude_scope));
 	}
 	
 	/**

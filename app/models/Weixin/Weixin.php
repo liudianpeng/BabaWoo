@@ -199,9 +199,9 @@ class Weixin {
 		{
 			$client->open_id = $auth_result->openid;
 			$client->save();
-			
-			Session::set('weixin.open_id', $auth_result->openid);
 		}
+		
+		Session::set('weixin.open_id', $auth_result->openid);
 		
 		return $auth_result;
 	}
