@@ -27,18 +27,48 @@ class Shjtmap {
 		
 		$url = Config::get('shjtmap.' . $region . '.' . $api_name) . '?' . http_build_query($query_args);
 		
-//		$this->info('Calling: ' . $url);
+//		Log::info('Calling: ' . $url);
 		
 		$xml = file_get_contents($url);
+		
+//		Log::info('Got XML: ' . var_export($xml, true));
 		
 		$simpleXmlObject = simplexml_load_string($xml);
 		
 		$object = static::parseXml($simpleXmlObject, $as_array);
 		
-//		$this->info('Object parsed as:');
-//		var_export($object); echo "\n";
+//		Log::info('Object parsed as: ' . var_export($object, true));
 		
 		return $object;
+	}
+	
+	public static function vehicleMonitor($line, $stop)
+	{
+		if(property_exists($line, 'pivot'))
+		{
+			$line_stop = $line->pivot;
+		}
+		else
+		{
+			$line_stop = DB::table('line_stop')->where('line_id', $line->id)->where('stop_id', $stop->id)->first();
+		}
+		
+		$result = Shjtmap::get('car_monitor', $line->region, array('lineid'=>$line->line_id, 'direction'=>(bool) $line->direction, 'stopid'=>$line_stop->stop_no));
+		
+		Log::info('车辆位置信息：' . var_export($result, true));
+		
+		try{
+			$next_bus = $result->cars->car[0];
+
+			// 查找下一班车时间，返回距离和预估时间
+			return $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
+					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
+					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站' . "\n";
+		}
+		catch(ErrorException $e)
+		{
+			Log::error('未找到车辆位置 ' . $e->getMessage());
+		}
 	}
 	
 }

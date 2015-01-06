@@ -31,17 +31,7 @@ class WeixinController extends BaseController {
 				{
 					if(in_array($line->pivot->id, $user->favorite->line_stop))
 					{
-						
-						$result = Shjtmap::get('car_monitor', 'px', array('lineid'=>$line->line_id, 'direction'=>(bool) $line->direction, 'stopid'=>$line->pivot->stop_no));
-
-						$next_bus = $result->cars->car[0];
-
-						// 查找下一班车时间，返回距离和预估时间
-						$reply_text .= $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
-								. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
-								. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站' . "\n";
-
-						
+						$reply_text .= Shjtmap::vehicleMonitor($line, $stop);
 					}
 				}
 			}
@@ -171,16 +161,7 @@ class WeixinController extends BaseController {
 			$user->favorite = $favorite;
 			$user->save();
 			
-			$result = Shjtmap::get('car_monitor', 'px', array('lineid'=>$line->line_id, 'direction'=>(bool) $line->direction, 'stopid'=>$line_stop->stop_no));
-			
-			$next_bus = $result->cars->car[0];
-			
-			// 查找下一班车时间，返回距离和预估时间
-			$reply_text = $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
-					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
-					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站';
-			
-			replyMessage($reply_text);
+			replyMessage(Shjtmap::vehicleMonitor($line, $stop));
 			
 			// 挂起一个任务，在预估时间少于1分钟时给用户发送一条客服消息
 		});
