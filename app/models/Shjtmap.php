@@ -59,11 +59,21 @@ class Shjtmap {
 		
 		try{
 			$next_bus = $result->cars->car[0];
-
-			// 查找下一班车时间，返回距离和预估时间
-			return $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' '
-					. $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
+			
+			$message = $stop->name . ' ' . $line->name . '->' . $line->terminalStop->name .  ' ';
+			
+			if($next_bus->terminal === 'null')
+			{
+				$message .= '尚未发车';
+			}
+			else
+			{
+				$message .= $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
 					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站' . "\n";
+			}
+			
+			return $message;
+			
 		}
 		catch(ErrorException $e)
 		{

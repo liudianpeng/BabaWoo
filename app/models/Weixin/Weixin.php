@@ -403,7 +403,7 @@ class Weixin {
 		
 		if(!$message_raw)
 		{
-			Log::error('Weixin message XML parse error. Content: ' . Request::getContent());
+			Log::error('微信消息XML解析错误: ' . Request::getContent());
 			exit;
 		}
 		
@@ -472,11 +472,14 @@ class Weixin {
 			return;
 		}
 		
+		global $user; $user = $this->user;
+		
 		function replyMessage($content)
 		{
-			global $message_raw;
+			global $message_raw, $user;
 			$received_message =  $message_raw;
 			echo View::make('weixin/message-reply-text', compact('content', 'received_message'));
+			Log::info('向用户' . $user->name . '发送了消息: ' . $content);
 		}
 		
 		/**
