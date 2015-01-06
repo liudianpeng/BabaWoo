@@ -2,7 +2,7 @@
 /**
  * Weixin library for Laravel
  * @author Uice Lu <uicestone@gmail.com>
- * @version 0.51 (2014/1/2)
+ * @version 0.52 (2014/1/6)
  */
 class Weixin {
 	
@@ -10,7 +10,8 @@ class Weixin {
 	private $app_id; // 开发模式 / 开发者凭据
 	private $app_secret; // 同上
 	
-	private $message_saved;
+	private $message;
+	private $user;
 	
 	public function __construct()
 	{
@@ -34,20 +35,20 @@ class Weixin {
 	{
 		$sign = array(
 			$this->token,
-			$_GET['timestamp'],
-			$_GET['nonce']
+			Input::get('timestamp'),
+			Input::get('nonce')
 		);
 		
 		sort($sign, SORT_STRING);
 		
-		if(sha1(implode($sign)) !== $_GET['signature'])
+		if(sha1(implode($sign)) !== Input::get('signature'))
 		{
 			exit('Signature verification failed.');
 		}
 		
-		if(isset($_GET['echostr']))
+		if(Input::get('echostr'))
 		{
-			echo $_GET['echostr'];
+			echo Input::get('echostr');
 		}
 	}
 	
@@ -390,8 +391,14 @@ class Weixin {
 		return $menu;
 	}
 	
+	/**
+	 * @param string|array $type MsgType, or array(MsgType, Event)
+	 * @param Closure $callback
+	 */
 	function onMessage($type, $callback)
 	{
+		global $message_raw;
+		
 		$message_raw = (object) (array) simplexml_load_string(Request::getContent(), 'SimpleXMLElement', LIBXML_NOCDATA);
 		
 		if(!$message_raw)
@@ -400,45 +407,49 @@ class Weixin {
 			exit;
 		}
 		
-		$user = User::firstOrCreate(array('openid'=>$message_raw->FromUserName));
+		if(is_null($this->user))
+		{
+			$this->user = User::firstOrCreate(array('openid'=>$message_raw->FromUserName));
+		}
 		
-		if(!$this->message_saved)
+		if(is_null($this->message))
 		{
 
-			if(!$user->name)
+			if(!$this->user->name)
 			{
 				$user_info = $this->getUserInfo($message_raw->FromUserName);
 
-				$user->fill(array(
+				$this->user->fill(array(
 					'name'=>$user_info->nickname,
-					'meta'=>json_encode($user_info, JSON_UNESCAPED_UNICODE)
+					'meta'=>$user_info
 				));
 
 			}
 
-			$user->last_active_at = date('Y-m-d H:i:s', $message_raw->CreateTime);
+			$this->user->last_active_at = date('Y-m-d H:i:s', $message_raw->CreateTime);
 
-			if(property_exists($message_raw, 'Event') && $message_raw->Event === 'LOCATION'){
-				$user->latitude = $message_raw->Latitude;
-				$user->longitude = $message_raw->Longitude;
-				$user->precision = $message_raw->Precision;
+			if(property_exists($message_raw, 'Event') && $message_raw->Event === 'LOCATION')
+			{
+				$this->user->latitude = $message_raw->Latitude;
+				$this->user->longitude = $message_raw->Longitude;
+				$this->user->precision = $message_raw->Precision;
 			}
 
-			$user->save();
+			$this->user->save();
 			
-			$message = new Message();
+			$this->message = new Message();
 
-			$message->fill(array(
+			$this->message->fill(array(
 				'type'=>$message_raw->MsgType,
 				'event'=>property_exists($message_raw, 'Event') ? $message_raw->Event : '',
-				'meta'=>json_encode($message_raw, JSON_UNESCAPED_UNICODE)
+				'meta'=>$message_raw
 			));
 
-			$message->user()->associate($user);
+			$this->message->user()->associate($this->user);
 
 			try
 			{
-				$message->save();
+				$this->message->save();
 			}
 			catch(PDOException $e)
 			{
@@ -449,37 +460,45 @@ class Weixin {
 				}
 			}
 			
-			$this->message_saved = true;
-			
 		}
 		
-		if($message_raw->MsgType === $type)
+		if(is_string($type) && $type !== $message_raw->MsgType)
 		{
-			$callback($message_raw, $user);
+			return;
 		}
+		
+		if(is_array($type) && !($type[0] === $message_raw->MsgType && property_exists($message_raw, 'Event') && strtolower($type[1]) === strtolower($message_raw->Event)))
+		{
+			return;
+		}
+		
+		function replyMessage($content)
+		{
+			global $message_raw;
+			$received_message =  $message_raw;
+			echo View::make('weixin/message-reply-text', compact('content', 'received_message'));
+		}
+		
+		/**
+		 * @todo not adapt to Laravel yet
+		 */
+		function replyPostMessage($reply_posts)
+		{
+			!is_array($reply_posts) && $reply_posts = array($reply_posts);
+			$reply_posts_count = count($reply_posts);
+			return View::make('weixin/message-reply-news', compact('reply_posts_count'));
+		}
+
+		function transferCustomerService($received_message)
+		{
+			return View::make('weixin/transfer-customer-service', array('fromUser'=>$received_message->fromUserName));
+		}
+		
+		$callback($this->message, $this->user);
 		
 		return $this;
 		
 	}
 	
-	function replyMessage($content, $received_message)
-	{
-		return View::make('weixin/message-reply-text', compact('content', 'received_message'));
-	}
-	
-	/**
-	 * @todo not adapt to Laravel yet
-	 */
-	function replyPostMessage($reply_posts, $received_message)
-	{
-		!is_array($reply_posts) && $reply_posts = array($reply_posts);
-		$reply_posts_count = count($reply_posts);
-		return View::make('weixin/message-reply-news', compact('reply_posts_count'));
-	}
-	
-	function transferCustomerService($received_message)
-	{
-		return View::make('weixin/transfer-customer-service', array('fromUser'=>$received_message->fromUserName));
-	}
 	
 }
