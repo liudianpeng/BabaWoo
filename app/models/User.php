@@ -33,5 +33,35 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	{
 		return $this->hasMany('Message');
 	}
-
+	
+	public function getMetaAttribute($value)
+	{
+		return json_decode($value);
+	}
+	
+	public function setMetaAttribute($value)
+	{
+		$this->attributes['meta'] = json_encode($value);
+	}
+	
+	public function getSessionAttribute($value)
+	{
+		return json_decode($value);
+	}
+	
+	public function setSessionAttribute($value)
+	{
+		$this->attributes['session'] = json_encode($value);
+	}
+	
+	public function getFavoriteAttribute($value)
+	{
+		return json_decode($value);
+	}
+	
+	public function setFavoriteAttribute($value)
+	{
+		$this->attributes['session'] = json_encode($value);
+	}
+	
 }
