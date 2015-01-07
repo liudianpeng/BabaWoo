@@ -41,7 +41,19 @@ class UpdateStopLocation extends Command {
 		foreach($stops as $stop)
 		{
 			try{
-				$result = $this->getPlaces($stop->name . '-公交车站')->results;
+				$result = BaiduMap::getPlaces($stop->name . '-公交车站')->results;
+				
+				if(!$result)
+				{
+					$result = BaiduMap::getPlaces($stop->name)->results;
+					
+					if($result && property_exists($result[0], 'address'))
+					{
+						$this->info('缩小查找范围: ' . $result[0]->address);
+						$result = BaiduMap::getPlaces($stop->name . '-公交车站', '上海市' . $result[0]->address)->results;
+					}
+				}
+				
 				if(!$result)
 				{
 					$this->error($stop->name . '站 没有找到');
@@ -56,29 +68,14 @@ class UpdateStopLocation extends Command {
 				$stop->save();
 
 				$this->info($stop->name . '站 地址已保存');
-			}catch(Exception $e){
+			}
+			catch(Exception $e){
 				$this->error($e->getMessage());
 				Log::error($e->getMessage());
 			}
 		}
 	}
 	
-	protected function getPlaces($location_name)
-	{
-		$query_args = array(
-			'query'=>$location_name,
-			'region'=>'上海市',
-			'output'=>'json',
-			'ak'=>Config::get('baidumap.ak')
-		);
-		
-		$url = 'http://api.map.baidu.com/place/v2/search?' . http_build_query($query_args);
-		
-		$result = file_get_contents($url);
-		
-		return json_decode($result);
-	}
-
 	/**
 	 * Get the console command arguments.
 	 *
