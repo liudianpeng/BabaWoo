@@ -13,6 +13,7 @@ class WeixinController extends BaseController {
 			return $weixin->verify();
 		}
 		
+		// 获得附近站点的收藏线路的车辆实时状态
 		$weixin->onMessage(array('event', 'location'), function($message, $user)
 		{
 			$latlng = BaiduMap::geoConv(array($message->latitude, $message->longitude));
@@ -43,6 +44,7 @@ class WeixinController extends BaseController {
 			
 		});
 		
+		// 获得附近所有车站和线路，创造回复列表并等候回复
 		$weixin->onMessage(array('event', 'click'), function($message, $user)
 		{
 			if($message->meta->EventKey !== 'GET_NEAR_BY_LINES')
@@ -55,6 +57,7 @@ class WeixinController extends BaseController {
 			$nearByStops = Stop::nearBy($latlng[0], $latlng[1])->distanceAscending($latlng[0], $latlng[1])->get();
 			
 			$reply_text = ''; $line_no = 0;
+			$reply_text_tail = '请回复序号获得实时信息。今后你在本站附近时，将自动获得该线路实时信息。';
 
 			// 存储发送给用户的序号-线路
 			$session = array();
@@ -62,46 +65,45 @@ class WeixinController extends BaseController {
 			foreach($nearByStops as $stop)
 			{
 
-				if(strlen($reply_text . '= ' . $stop->name . ' =' . "\n") > 2048){
+				if(strlen($reply_text . '=== ' . $stop->name . ' ===' . "\r\n") > 2046 - strlen($reply_text_tail)){
 					break;
 				}
 
-				$reply_text .= '= ' . $stop->name . ' =' . "\n";
+				$reply_text .= '=== ' . $stop->name . ' ===' . "\r\n";
 
 				foreach($stop->lines as $line)
 				{
 					$item = ($line_no + 1) . '. ' . $line->name . '->' . $line->terminalStop->name;
 
-					if(strlen($reply_text . $item . "\n") > 2048)
+					if(strlen($reply_text . $item . "\r\n") > 2046 - strlen($reply_text_tail))
 					{
 						break;
 					}
 
 					$session[$line_no] = $line->pivot->id;
-					$reply_text .= $item . "\n";
+					$reply_text .= $item . "\r\n";
 					$line_no ++;
 				}
+				
+				$reply_text .= "\r\n";
+				
 			}
 			
 			$user->session = $session;
 			$user->save();
 			
+			$reply_text .= $reply_text_tail;
+			
 			replyMessage($reply_text);
 		});
 		
-		$weixin->onMessage('text', function($message, $user) use($weixin)
+		$weixin->onMessage('text', function($message, $user)
 		{
 			$session = $user->session;
 			
-			if(!$session)
-			{
-				replyMessage('尚未接收公交线路列表');
-				return;
-			}
-			
 			$index = $message->content - 1;
 			
-			if(!array_key_exists($index, $session))
+			if(!$session || !array_key_exists($index, $session))
 			{
 				// 回复的是线路名称，查找这些线路的附近站点
 				$latlng = BaiduMap::geoConv(array($user->latitude, $user->longitude));
@@ -112,6 +114,7 @@ class WeixinController extends BaseController {
 				})->distanceAscending($latlng[0], $latlng[1])->get();
 				
 				$reply_text = ''; $line_no = 0;
+				$reply_text_tail = '请回复序号获得实时信息。今后你在本站附近时，将自动获得该线路实时信息。';
 				
 				// 存储发送给用户的序号-线路
 				$session = array();
@@ -119,29 +122,34 @@ class WeixinController extends BaseController {
 				foreach($stops as $stop)
 				{
 					
-					if(strlen($reply_text . '= ' . $stop->name . ' =' . "\n") > 2048){
+					if(strlen($reply_text . '=== ' . $stop->name . ' ===' . "\r\n") > 2046 - strlen($reply_text_tail)){
 						break;
 					}
 					
-					$reply_text .= '= ' . $stop->name . ' =' . "\n";
+					$reply_text .= '=== ' . $stop->name . ' ===' . "\r\n";
 					
 					foreach($stop->lines()->where('name', 'like', $message->content . '%')->get() as $line)
 					{
 						$item = ($line_no + 1) . '. ' . $line->name . '->' . $line->terminalStop->name;
 						
-						if(strlen($reply_text . $item . "\n") > 2048)
+						if(strlen($reply_text . $item . "\r\n") > 2046 - strlen($reply_text_tail))
 						{
 							break;
 						}
 						
 						$session[$line_no] = $line->pivot->id;
-						$reply_text .= $item . "\n";
+						$reply_text .= $item . "\r\n";
 						$line_no ++;
 					}
+					
+					$reply_text .= "\r\n";
+					
 				}
 				
 				$user->session = $session;
 				$user->save();
+				
+				$reply_text .= $reply_text_tail;
 				
 				replyMessage($reply_text);
 				return;
