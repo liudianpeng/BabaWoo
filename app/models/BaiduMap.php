@@ -27,8 +27,15 @@ class BaiduMap {
 		);
 		
 		$response = file_get_contents($url_geoconv . urldecode(http_build_query($query_args)));
-
-		$point = json_decode($response)->result[0];
+		
+		$result = json_decode($response);
+		
+		if($result->status !== 0)
+		{
+			Log::error('百度地图坐标转换错误，输入坐标：' . json_encode($latlng) . '，错误信息：' . $response);
+		}
+		
+		$point = $result->result[0];
 		
 		return array($point->y, $point->x);
 		
