@@ -25,6 +25,16 @@ class Message extends Eloquent {
 		{
 			return $this->meta->Latitude;
 		}
+		
+		if(property_exists($this->meta, 'Location_X'))
+		{
+			return $this->meta->Location_X;
+		}
+		
+		if(property_exists($this->meta, 'SendLocationInfo'))
+		{
+			return $this->meta->SendLocationInfo->Location_X;
+		}
 	}
 	
 	public function getLongitudeAttribute()
@@ -32,6 +42,16 @@ class Message extends Eloquent {
 		if(property_exists($this->meta, 'Longitude'))
 		{
 			return $this->meta->Longitude;
+		}
+		
+		if(property_exists($this->meta, 'Location_Y'))
+		{
+			return $this->meta->Location_Y;
+		}
+		
+		if(property_exists($this->meta, 'SendLocationInfo'))
+		{
+			return $this->meta->SendLocationInfo->Location_Y;
 		}
 	}
 	
