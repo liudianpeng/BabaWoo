@@ -23,7 +23,8 @@ class BaiduMap {
 		$url_geoconv = 'http://api.map.baidu.com/geoconv/v1/?';
 		$query_args = array(
 			'coords'=>$latlng[1] . ',' . $latlng[0],
-			'ak'=>Config::get('baidumap.ak')
+			'ak'=>Config::get('baidumap.ak'),
+			'from'=>3
 		);
 		
 		$response = file_get_contents($url_geoconv . urldecode(http_build_query($query_args)));

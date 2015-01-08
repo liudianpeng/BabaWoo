@@ -85,7 +85,7 @@ class WeixinController extends BaseController {
 			{
 				if(in_array($line->pivot->id, $user->favorite->line_stop))
 				{
-					$reply_text .= Shjtmap::vehicleMonitor($line, $stop);
+					$reply_text .= Shjtmap::vehicleMonitor($line, $stop) . "\r\n";
 				}
 			}
 		}
