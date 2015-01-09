@@ -9,6 +9,11 @@ class Stop extends Eloquent {
 		return $this->belongsToMany('Line')->withPivot('id', 'stop_no');
 	}
 	
+	public function transferableStops()
+	{
+		return $this->belongsToMany('Stop', 'stop_stop', 'stop1_id', 'stop2_id');
+	}
+	
 	public function originLines()
 	{
 		return $this->hasMany('Line', 'origin_stop_id');

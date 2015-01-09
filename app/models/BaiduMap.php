@@ -43,6 +43,24 @@ class BaiduMap {
 			return array($point->y, $point->x);
 		}
 		
+	}
+	
+	public static function routeMatrix($origins, $destinations, $mode = 'walking')
+	{
+		$url_route_matrix = 'http://api.map.baidu.com/direction/v1/routematrix?';
+		$query_args = array(
+			'origins'=>$origins,
+			'destinations'=>$destinations,
+			'mode'=>$mode,
+			'output'=>'json',
+			'ak'=>Config::get('baidumap.ak')
+		);
+		
+		$response = file_get_contents($url_route_matrix . http_build_query($query_args));
+		
+		$result = json_decode($response);
+		
+		return $result->result->elements;
 		
 	}
 	

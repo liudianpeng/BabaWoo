@@ -47,6 +47,17 @@ CREATE TABLE IF NOT EXISTS `line_stop` (
   UNIQUE KEY `line_id-stop_id-stop_no` (`line_id`,`stop_id`, `stop_no`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `stop_stop` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `stop1_id` int(11) NOT NULL,
+  `stop2_id` int(11) NOT NULL,
+  `walking_distance` int(11) DEFAULT NULL,
+  `walking_duration` int(11) DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `stop1_id-stop2_id` (`stop1_id`,`stop2_id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `messages` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -96,6 +107,10 @@ CREATE TABLE IF NOT EXISTS `users` (
 ALTER TABLE `line_stop`
   ADD CONSTRAINT `line_stop_ibfk_1` FOREIGN KEY (`line_id`) REFERENCES `lines` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,
   ADD CONSTRAINT `line_stop_ibfk_2` FOREIGN KEY (`stop_id`) REFERENCES `stops` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
+
+ALTER TABLE `stop_stop`
+  ADD CONSTRAINT `stop_stop_ibfk_1` FOREIGN KEY (`stop1_id`) REFERENCES `stops` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,
+  ADD CONSTRAINT `stop_stop_ibfk_2` FOREIGN KEY (`stop2_id`) REFERENCES `stops` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 ALTER TABLE `lines`
   ADD CONSTRAINT `lines_ibfk_1` FOREIGN KEY (`origin_stop_id`) REFERENCES `stops` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,

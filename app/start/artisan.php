@@ -12,3 +12,4 @@
 */
 Artisan::add(new UpdateLines);
 Artisan::add(new UpdateStopLocation);
+Artisan::add(new UpdateStopTransfer);
