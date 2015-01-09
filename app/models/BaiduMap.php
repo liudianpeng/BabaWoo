@@ -18,13 +18,14 @@ class BaiduMap {
 		return json_decode($result);
 	}
 
-	public static function geoConv($latlng)
+	public static function geoConv($latlng, $input_type = 1, $output_type = 5)
 	{
 		$url_geoconv = 'http://api.map.baidu.com/geoconv/v1/?';
 		$query_args = array(
 			'coords'=>$latlng[1] . ',' . $latlng[0],
 			'ak'=>Config::get('baidumap.ak'),
-			'from'=>3
+			'from'=>$input_type,
+			'to'=>$output_type
 		);
 		
 		$response = file_get_contents($url_geoconv . urldecode(http_build_query($query_args)));
@@ -33,12 +34,15 @@ class BaiduMap {
 		
 		if($result->status !== 0)
 		{
-			Log::error('百度地图坐标转换错误，输入坐标：' . json_encode($latlng) . '，错误信息：' . $response);
+			Log::error('百度坐标转码错误，输入坐标：' . json_encode($latlng) . '，错误信息：' . $response);
+		}
+		else
+		{
+			$point = $result->result[0];
+			Log::info('百度坐标转码[' . $input_type . '->' . $output_type . ']：' . $latlng[1] . ',' . $latlng[0] . ' -> ' . $point->x . ',' . $point->y);
+			return array($point->y, $point->x);
 		}
 		
-		$point = $result->result[0];
-		
-		return array($point->y, $point->x);
 		
 	}
 	

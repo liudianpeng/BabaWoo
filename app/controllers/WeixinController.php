@@ -18,11 +18,6 @@ class WeixinController extends BaseController {
 			replyMessage($this->getFavoriteLineStatus($user, $message->latitude, $message->longitude));
 		});
 		
-		$weixin->onMessage('location', function($message, $user)
-		{
-			replyMessage($this->getFavoriteLineStatus($user, $message->latitude, $message->longitude));
-		});
-		
 		$weixin->onMessage(array('event', 'click'), function($message, $user)
 		{
 			if($message->meta->EventKey !== 'GET_NEAR_BY_LINES')
@@ -33,9 +28,9 @@ class WeixinController extends BaseController {
 			replyMessage($this->getNearByLines($user));
 		});
 		
-		$weixin->onMessage(array('event', 'location_select'), function($message, $user) use($weixin)
+		$weixin->onMessage('location', function($message, $user) use($weixin)
 		{
-			$weixin->sendServiceMessage($user->openid, $this->getNearByLines($user, $message->latitude, $message->longitude));
+			$weixin->sendServiceMessage($user, $this->getNearByLines($user, $message->latitude, $message->longitude, 3));
 		});
 		
 		$weixin->onMessage('text', function($message, $user)
@@ -67,9 +62,9 @@ class WeixinController extends BaseController {
 	}
 	
 	// 获得附近站点的收藏线路的车辆实时状态
-	protected function getFavoriteLineStatus($user, $latitude, $longitude)
+	protected function getFavoriteLineStatus($user, $latitude, $longitude, $geo_input_type = 1)
 	{
-		$latlng = BaiduMap::geoConv(array($latitude, $longitude));
+		$latlng = BaiduMap::geoConv(array($latitude, $longitude), $geo_input_type);
 		$nearByStops = Stop::nearBy($latlng[0], $latlng[1])->distanceAscending($latlng[0], $latlng[1])->get();
 
 		$reply_text = '';
@@ -94,7 +89,7 @@ class WeixinController extends BaseController {
 	}
 	
 	// 获得附近所有车站和线路，创造回复列表并等候回复
-	protected function getNearByLines($user, $latitude = null, $longitude = null)
+	protected function getNearByLines($user, $latitude = null, $longitude = null, $geo_input_type = 1)
 	{
 		if(is_null($latitude) || is_null($longitude))
 		{
@@ -103,7 +98,7 @@ class WeixinController extends BaseController {
 		}
 		
 		// 查找用户周围车站
-		$latlng = BaiduMap::geoConv(array($latitude, $longitude));
+		$latlng = BaiduMap::geoConv(array($latitude, $longitude), $geo_input_type);
 		$nearByStops = Stop::nearBy($latlng[0], $latlng[1])->distanceAscending($latlng[0], $latlng[1])->get();
 
 		$reply_text = ''; $line_no = 0;

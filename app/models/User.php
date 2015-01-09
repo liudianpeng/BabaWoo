@@ -64,4 +64,9 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 		$this->attributes['favorite'] = json_encode($value);
 	}
 	
+	public function getDates()
+	{
+		return array('last_active_at');
+	}
+	
 }

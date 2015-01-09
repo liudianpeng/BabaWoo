@@ -2,7 +2,7 @@
 /**
  * Weixin library for Laravel
  * @author Uice Lu <uicestone@gmail.com>
- * @version 0.6 (2014/1/9)
+ * @version 0.61 (2014/1/9)
  */
 class Weixin {
 	
@@ -434,8 +434,7 @@ class Weixin {
 		
 		if(!property_exists($message_raw, 'FromUserName'))
 		{
-			Log::error('微信消息XML解析错误: ' . Request::getContent());
-			exit;
+			return;
 		}
 		
 		if(is_null($this->user))
@@ -456,6 +455,8 @@ class Weixin {
 				));
 
 			}
+			
+			Log::info('收到微信消息：' . json_encode($message_raw));
 
 			$this->user->last_active_at = date('Y-m-d H:i:s', $message_raw->CreateTime);
 
@@ -466,11 +467,11 @@ class Weixin {
 				$this->user->precision = $message_raw->Precision;
 			}
 
-			if($message_raw->MsgType === 'location')
-			{
-				$this->user->latitude = $message_raw->Location_X;
-				$this->user->longitude = $message_raw->Location_Y;
-			}
+//			if($message_raw->MsgType === 'location')
+//			{
+//				$this->user->latitude = $message_raw->Location_X;
+//				$this->user->longitude = $message_raw->Location_Y;
+//			}
 
 			$this->user->save();
 			
@@ -549,7 +550,12 @@ class Weixin {
 	
 	public function sendServiceMessage($to_user, $contents, $type = 'text')
 	{
-		$data = array('touser'=>$to_user, 'msgtype'=>$type);
+		if($to_user->last_active_at->timestamp < time() - 60 * 48){
+			Log::error($to_user->name . ' 已超过48小时未活动，客服消息发送失败');
+			return;
+		}
+		
+		$data = array('touser'=>$to_user->openid, 'msgtype'=>$type);
 		
 		if($type === 'text')
 		{
