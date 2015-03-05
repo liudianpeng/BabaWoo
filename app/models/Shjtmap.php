@@ -55,7 +55,7 @@ class Shjtmap {
 		
 		$result = Shjtmap::get('car_monitor', $line->region, array('lineid'=>$line->line_id, 'direction'=>(bool) $line->direction, 'stopid'=>$line_stop->stop_no));
 		
-		Log::info('车辆位置信息：' . var_export($result, true));
+//		Log::info('车辆位置信息：' . var_export($result, true));
 		
 		try{
 			$next_bus = $result->cars->car[0];
@@ -69,7 +69,7 @@ class Shjtmap {
 			else
 			{
 				$message .= $next_bus->terminal . '还有' . $next_bus->stopdis . '站，' . ($next_bus->distance > 1000 ? (round($next_bus->distance / 1000, 1) . '千') : $next_bus->distance) . '米，'
-					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站' . "\n";
+					. '约' . floor($next_bus->time / 60) . '分' . $next_bus->time % 60 . '秒' . '进站';
 			}
 			
 			return $message;

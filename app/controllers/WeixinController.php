@@ -80,12 +80,13 @@ class WeixinController extends BaseController {
 			{
 				if(in_array($line->pivot->id, $user->favorite->line_stop))
 				{
-					$reply_text .= Shjtmap::vehicleMonitor($line, $stop) . "\r\n";
+					$reply_text .= Shjtmap::vehicleMonitor($line, $stop) . "\r\n\r\n";
 				}
 			}
 		}
 		
-		return $reply_text;
+		return substr($reply_text, 0, -4); // 移除文字最后的换行符\r\n
+		
 	}
 	
 	// 获得附近所有车站和线路，创造回复列表并等候回复
