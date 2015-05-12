@@ -49,11 +49,6 @@ class UpdateLines extends Command {
 
 				$query_args = $this->option('region') === 'px' ? array('name'=>$line_base['actual']) : array('linename'=>$line_base['name']);
 
-				if(Line::where('name', $line_base['name'])->get()->count() === 2)
-				{
-					continue;
-				}
-				
 				$line_detail = Shjtmap::get('get_line_info_by_name', $this->option('region'), $query_args);
 
 				if($this->option('region') === 'pd')
@@ -90,13 +85,39 @@ class UpdateLines extends Command {
 
 					if(!property_exists($direction, 'stop'))
 					{
+						Log::error($line_base['name'] . ' 方向' . (int)$direction->direction . '没有站点');
+						$this->error($line_base['name'] . ' 方向' . (int)$direction->direction . '没有站点');
 						continue;
 					}
-
+					
+					$new_stops_string = implode(' ', array_map(function($stop)
+					{
+						return trim($stop->zdmc);
+					},
+					$direction->stop));
+					
+					$stops_string = implode(' ', array_column($line->stops()->get()->toArray(), 'name'));
+					
+					$line_stops_changed = $stops_string !== $new_stops_string;
+					
+					if(!$line_stops_changed)
+					{
+						continue;
+					}
+					
+					if($stops_string)
+					{
+						$this->comment($line_base['name'] . ' 方向' . (int)$direction->direction . ' 站点有更新');
+//						$this->line($stops_string);
+//						$this->line($new_stops_string);
+//						var_export($direction->stop);
+						$line->stops()->detach();
+					}
+					
 					foreach($direction->stop as $stop_raw)
 					{
 						$stop = Stop::firstOrCreate(array(
-							'name'=>$stop_raw->zdmc,
+							'name'=>trim($stop_raw->zdmc),
 						));
 
 						try
@@ -105,7 +126,7 @@ class UpdateLines extends Command {
 						}
 						catch(PDOException $e)
 						{
-							// A "Dupulicate Entry" exception is considered normal here
+							// A "Duplicate Entry" exception is considered normal here
 							if(strpos($e->getMessage(), 'Duplicate entry') === false)
 							{
 								throw new PDOException($e->getMessage(), $e->getCode(), $e);
@@ -113,9 +134,10 @@ class UpdateLines extends Command {
 						}
 					}
 
-					Log::info($line['name'] . ' saved.');
-					$this->info($line['name'] . ' saved.');
+					Log::info($line['name'] . ' 已保存');
+					$this->info($line['name'] . ' 已保存');
 				}
+
 			}
 			catch(Exception $e){
 				$this->error($e->getMessage());
